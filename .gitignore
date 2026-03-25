@@ -1,0 +1,31 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+build/
+dist/
+
+# --- Selenium & Chrome ---
+# Chặn thư mục chứa cookies/session cá nhân để bảo mật
+gemini_automation_profile/
+gemini_profile/
+chrome_profile/
+# Chặn các file driver tự tải về
+.wdm/
+
+# --- Logs & Temp ---
+# Chặn các file .txt chứa log kết quả AI sinh ra
+*.txt
+# Ngoại trừ file hướng dẫn
+!README.md
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Docker ---
+.dockerignore
