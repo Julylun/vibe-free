@@ -1,7 +1,6 @@
-# 🩺 Medipath Gemini API (OpenAI Standard)
+# Gemini API (OpenAI Standard)
 
 Dự án cung cấp một API trung gian (Proxy) giúp bạn sử dụng Google Gemini Web hoàn toàn miễn phí thông qua giao thức chuẩn của OpenAI.  
-Thích hợp cho dự án Medipath hoặc các ứng dụng Chat UI (NextChat, Chatbox).
 
 ---
 
@@ -77,7 +76,7 @@ API này tuân thủ chuẩn OpenAI, có thể dùng với SDK hoặc các ứng
 from openai import OpenAI
 
 client = OpenAI(
-    api_key="medipath-secret",
+    api_key="secret",
     base_url="http://localhost:8000/v1"
 )
 
@@ -86,7 +85,7 @@ response = client.chat.completions.create(
     messages=[
         {
             "role": "system", 
-            "content": "Bạn là bác sĩ chuyên gia của Medipath. Hãy trả lời chuyên nghiệp và ngắn gọn."
+            "content": "Bạn là bác sĩ chuyên gia của. Hãy trả lời chuyên nghiệp và ngắn gọn."
         },
         {
             "role": "user", 
