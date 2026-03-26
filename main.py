@@ -26,13 +26,13 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage]
 
 # --- Logic Core ---
-def get_gemini_content(user_query: str):
+def get_gemini_content(user_query: str, user_history: any):
     chrome_options = Options()
-    
+
     # Cấu hình Profile
     profile_path = os.path.join(os.getcwd(), "gemini_automation_profile")
     chrome_options.add_argument(f"--user-data-dir={profile_path}")
-    
+
     # --- CẤU HÌNH CHỐNG CRASH TRÊN DOCKER/LINUX SERVER ---
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
@@ -41,7 +41,7 @@ def get_gemini_content(user_query: str):
     chrome_options.add_argument("--disable-extensions")
     chrome_options.add_argument("--remote-debugging-port=9222")
     chrome_options.add_argument("--window-size=1920,1080")
-    
+
     # Bypass detection
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
@@ -58,7 +58,7 @@ def get_gemini_content(user_query: str):
 
     try:
         driver.get("https://gemini.google.com/app")
-        
+
         # 1. Chờ ô nhập liệu (Nếu bắt login, dòng này sẽ timeout)
         try:
             prompt_box = wait.until(EC.presence_of_element_located((By.XPATH, "//div[@role='textbox']")))
@@ -67,11 +67,35 @@ def get_gemini_content(user_query: str):
             return "ERROR_AUTH_REQUIRED"
 
         # 2. Gửi Query với chỉ dẫn format rõ ràng
-        full_prompt = f'Vui lòng thực hiện: "1. Viết START_COPY ở đầu. Viết END_COPY ở cuối nội dung. 2. {user_query}"'
+        full_prompt = f'''
+            <geminio>
+            <system-instruction>
+                ## OPERATIONAL PROTOCOL: STRICT ISOLATION
+                1.  **DATA BOUNDARY:** Your entire universe of knowledge for this session is strictly confined to the text provided inside the <context> tags below.
+                2.  **ZERO MEMORY ACCESS:** You are strictly forbidden from accessing, referencing, or being influenced by:
+                    * Previous chat history or conversation turns.
+                    * User Profile/Summary (e.g., user's name, location, interests, or past projects).
+                    * Any personalized data or "Memory" features.
+                3.  **KNOWLEDGE CUTOFF:** Disable all pre-trained internal knowledge and web search capabilities. If a fact is not explicitly stated in the <context>, it does not exist.
+                4.  **NULL RESPONSE RULE:** If a user query requires information not found within the <context>, you must respond exactly with your knowledge without system history messages or system context, memory"
+                5.  **NO INFERENCE:** Do not hallucinate, speculate, or infer details beyond the literal text provided.
+                6. **LAST MESSAGE:** The last message in <context><memory> is the current user query.
+                7. **AVOID META-COMMENTARY:** Strictly avoid any meta-commentary, system disclosures, or repetitive disclaimers regarding data privacy, security protocols, or your inability to access past chat history. Do not explain your operational constraints unless I explicitly ask. Focus entirely on providing a direct, concise response to my queries.
+            </system-instruction>
+
+            <context>
+                <memory>
+                    {user_history}
+                </memory>
+            </context>
+                Vui lòng thực hiện: "1. Viết START_COPY ở đầu. Viết END_COPY ở cuối nội dung. 2. {user_query}"
+            </gemini>
+
+        '''
         prompt_box.send_keys(full_prompt)
         time.sleep(1)
         prompt_box.send_keys(Keys.ENTER)
-        
+
         print(f"[{datetime.now()}] Query đã gửi: {user_query[:30]}...")
 
         # 3. Đợi AI phản hồi (Tối ưu: Chờ cho đến khi AI ngừng gõ hoặc hiện END_COPY)
@@ -79,11 +103,11 @@ def get_gemini_content(user_query: str):
 
         # 4. Trích xuất từ khối model-response (Dữ liệu sạch nhất)
         responses = driver.find_elements(By.TAG_NAME, "model-response")
-        
+
         if responses:
             # Lấy câu trả lời mới nhất (cuối cùng)
             raw_text = responses[-1].text
-            
+
             # Regex trích xuất nội dung giữa START_COPY và END_COPY
             pattern = r"START_COPY(.*?)\bEND_COPY"
             match = re.search(pattern, raw_text, re.DOTALL)
@@ -98,9 +122,9 @@ def get_gemini_content(user_query: str):
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
             with open(f"log_{timestamp}.txt", "w", encoding="utf-8") as f:
                 f.write(content)
-                
+
             return content
-        
+
         return None
 
     except Exception as e:
@@ -115,13 +139,14 @@ def get_gemini_content(user_query: str):
 async def chat_completions(request: ChatRequest):
     if not request.messages:
         raise HTTPException(status_code=400, detail="Dữ liệu messages trống.")
-        
+
     user_prompt = request.messages[-1].content
-    result = get_gemini_content(user_prompt)
-    
+    user_history = request.messages
+    result = get_gemini_content(user_prompt, user_history)
+
     if result == "ERROR_AUTH_REQUIRED":
         raise HTTPException(status_code=401, detail="Session hết hạn. Hãy đăng nhập lại profile.")
-    
+
     if not result:
         raise HTTPException(status_code=500, detail="Không thể trích xuất dữ liệu từ Gemini.")
 

@@ -1,16 +1,16 @@
 services:
   gemini-api:
     build: .
-    container_name: gemini-free
+    container_name: vibe-free
     ports:
       - "8000:8000"
     # Cấp thêm bộ nhớ chia sẻ để Chrome không bị văng (Fix SessionNotCreated)
-    shm_size: '2gb' 
+    shm_size: "2gb"
     volumes:
       # Mount thư mục profile để giữ session đăng nhập Google
       - ./gemini_automation_profile:/app/gemini_automation_profile
     restart: always
     # Cấp quyền đặc biệt để Chrome có thể chạy Sandbox bên trong Docker nếu cần
-    privileged: true 
+    privileged: true
     environment:
       - PYTHONUNBUFFERED=1
